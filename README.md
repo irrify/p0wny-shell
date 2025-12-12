@@ -63,6 +63,7 @@ Want to support this project?
 
 * **2025.12.12:**
   * Save command history in localStorage to persist across page refreshes (@Ne0re0)
+  * Handle password authentication (@Ne0re0)
 * **v2023.08.10:**
   * Make p0wny@shell compatible with PHP 5.3 (@FrancoisCapon, #38)
 * **v2023.05.28:**
