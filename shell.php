@@ -336,6 +336,7 @@ if (isset($_GET["feature"])) {
         <script>
             var SHELL_CONFIG = <?php echo json_encode($SHELL_CONFIG); ?>;
             var CWD = null;
+            var HISTORY_MAX_SIZE = 500;
             var commandHistory = [];
             var historyPosition = 0;
             var eShellCmdInput = null;
@@ -412,7 +413,6 @@ if (isset($_GET["feature"])) {
                     },
                     _requestCallback
                 );
-
             }
 
             function featureDownload(name, file) {
@@ -475,7 +475,6 @@ if (isset($_GET["feature"])) {
                     CWD = atob(response.cwd);
                     _updatePrompt();
                 });
-
             }
 
             function escapeHtml(string) {
@@ -528,8 +527,33 @@ if (isset($_GET["feature"])) {
             }
 
             function insertToHistory(cmd) {
+                if (commandHistory.length >= HISTORY_MAX_SIZE) {
+                    commandHistory.shift();
+                }
                 commandHistory.push(cmd);
                 historyPosition = commandHistory.length;
+                saveHistoryToLocalStorage();
+            }
+
+            function saveHistoryToLocalStorage() {
+                try {
+                    localStorage.setItem('shellCommandHistory', JSON.stringify(commandHistory));
+                } catch (e) {
+                    console.error('Failed to save history:', e);
+                }
+            }
+
+            function loadHistoryFromLocalStorage() {
+                try {
+                    var saved = localStorage.getItem('shellCommandHistory');
+                    if (saved) {
+                        commandHistory = JSON.parse(saved);
+                        historyPosition = commandHistory.length;
+                    }
+                } catch (e) {
+                    console.error('Failed to load history:', e);
+                    commandHistory = [];
+                }
             }
 
             function makeRequest(url, params, callback) {
@@ -575,6 +599,7 @@ if (isset($_GET["feature"])) {
             window.onload = function() {
                 eShellCmdInput = document.getElementById("shell-cmd");
                 eShellContent = document.getElementById("shell-content");
+                loadHistoryFromLocalStorage();
                 updateCwd();
                 eShellCmdInput.focus();
             };
