@@ -735,8 +735,6 @@ if (isset($_GET["feature"])) {
                 var remaining = suggestion.substring(typed.length);
                 suggestionSpan.innerHTML = '<span style="opacity: 0;">' + escapeHtml(typed) + '</span><span style="color: rgba(238, 238, 238, 0.3);">' + escapeHtml(remaining) + '</span>';
                 suggestionSpan.style.left = eShellCmdInput.offsetLeft + "2px";
-                suggestionSpan.style.top = eShellCmdInput.offsetTop + "px";
-                suggestionSpan.style.height = "30px";
             }
 
             function clearSuggestion() {
