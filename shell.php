@@ -250,10 +250,15 @@ function initShellConfig() {
     global $SHELL_CONFIG;
 
     if (isRunningWindows()) {
-        $username = getenv('USERNAME');
-        if ($username !== false) {
+        $username = executeCommand("whoami");
+        if (isset($username) && strlen($username) > 0){
             $SHELL_CONFIG['username'] = $username;
-        }
+        } else {
+            $username = getenv('USERNAME');
+            if ($username !== false) {
+                $SHELL_CONFIG['username'] = $username;
+            }
+        } 
     } else {
         $pwuid = posix_getpwuid(posix_geteuid());
         if ($pwuid !== false) {
