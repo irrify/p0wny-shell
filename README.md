@@ -76,6 +76,7 @@ Want to support this project?
 
 * **2025.12.14:**
   * Implement command suggestion based on command history (@Ne0re0)
+  * Patch bad username bug on Windows environment (@Ne0re0)
 * **2025.12.12:**
   * Save command history in localStorage to persist across page refreshes (@Ne0re0)
   * Handle password authentication (@Ne0re0)
