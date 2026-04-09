@@ -7,15 +7,16 @@ p0wny@shell:~# is a very basic, single-file, PHP shell. It can be used to quickl
 **Features:**
 
 * Command history (using arrow keys `↑` `↓`)
-* Auto-completion of command and file names (using `Tab` key)
+* Auto-completion of command and file names (using `Tab` or `→` key)
+* Command suggestion based on command history
 * Navigate on the remote file-system (using `cd` command)
 * Upload a file to the server (using `upload <destination_file_name>` command)
 * Download a file from the server (using `download <file_name>` command)
+* Password protection
 
 **WARNING:** THIS SCRIPT IS A SECURITY HOLE. **DO NOT** UPLOAD IT ON A SERVER UNLESS YOU KNOW WHAT YOU ARE DOING!
 
 ![Screenshot](./screenshot.png)
-
 
 **Demo with Docker:**
 
@@ -23,6 +24,18 @@ p0wny@shell:~# is a very basic, single-file, PHP shell. It can be used to quickl
     docker run -it -p 8080:8080 -d p0wny
     # open with your browser http://127.0.0.1:8080/shell.php
 
+**Password protection**  
+
+![Authentication](./authentication.png)
+
+To enable password protection simply replace the `$PASSWD` variable with your hash.  
+Comment `$PASSWD` to disable password protection.
+```php
+// Generate password's hash with
+// php -r "echo password_hash('yourstrongpassword', PASSWORD_DEFAULT );"
+// Comment to remove password protection
+$PASSWD = '$2y$10$xTVjPTvVllWTgjf3YBlK7OmJiP9YG/aml5bCJdbFiS41LKAqyquBa'; 
+```
 
 ## Contributing
 
@@ -61,6 +74,12 @@ Want to support this project?
 
 ## Changelog
 
+* **2025.12.14:**
+  * Implement command suggestion based on command history (@Ne0re0)
+  * Patch bad username bug on Windows environment (@Ne0re0)
+* **2025.12.12:**
+  * Save command history in localStorage to persist across page refreshes (@Ne0re0)
+  * Handle password authentication (@Ne0re0)
 * **v2023.08.10:**
   * Make p0wny@shell compatible with PHP 5.3 (@FrancoisCapon, #38)
 * **v2023.05.28:**
